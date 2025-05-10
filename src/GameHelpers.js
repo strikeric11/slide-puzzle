@@ -1,13 +1,10 @@
 
-export const randomNumsArray = (numLength) => {
+export const shuffleArray = (array) => {
 
-  const randomArrNum = Array.from({ length: numLength }, (_, i) => i);
-
-  for (let i = randomArrNum.length - 1; i > 0; i--) {
-    const randomIndex = Math.floor(Math.random() * (i + 1));
-    [randomArrNum[i], randomArrNum[randomIndex]] = [randomArrNum[randomIndex], randomArrNum[i]];
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1)); 
+    [array[i], array[j]] = [array[j], array[i]]; 
   }
-
-  return randomArrNum;
+  return array;
   
 };

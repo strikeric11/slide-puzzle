@@ -1,5 +1,20 @@
 import { getActivityBySlugAndCurrentStudentUser } from './api/data.api';
 
+import backgroundImg from './assets/background.svg';
+
+//loading
+import loading_container from './assets/loading_bar/container.svg';
+
+import center_bar from './assets/loading_bar/center_bar.svg';
+
+import edge_bar from './assets/loading_bar/edge_bar.svg';
+
+//full screen icon
+
+import enterFullScreenIcon from './assets/enter_full_screen_icon.svg';
+
+import exitFullScreenIcon from './assets/exit_full_screen_icon.svg';
+
 import board from './assets/board.svg';
 
 import banner from './assets/banner.svg';
@@ -53,9 +68,7 @@ import wrongAnswerAudioM4A from './assets/audio/wrongAnswerAudio.m4a';
 class PreloadScene extends BaseScene{
 
   constructor(){
-
     super('PreloadScene');
-
   }
 
   preload () {
@@ -86,7 +99,20 @@ class PreloadScene extends BaseScene{
       wrongAnswerAudioM4A
     ]);
 
+    //Loading Files
+    this.load.svg('loading_container', loading_container);
+
+    this.load.svg('center_bar', center_bar);
+
+    this.load.svg('edge_bar', edge_bar);
+
+    //full screen icon
+    this.load.svg('enterFullScreenIcon', enterFullScreenIcon);
+
+    this.load.svg('exitFullScreenIcon', exitFullScreenIcon);
+
     //Images
+    this.load.svg('backgroundImg', backgroundImg);
 
     this.load.svg('board', board);
 
@@ -126,15 +152,17 @@ class PreloadScene extends BaseScene{
 
     await this.checkInternetConnectionBanner(); //check and wait for internet connection
 
-    const data = await getActivityBySlugAndCurrentStudentUser();
+    const { activity, isPreview } = await getActivityBySlugAndCurrentStudentUser();
 
-    console.log("server Data: ", data);
+    console.log("activity: ", activity);
 
-    this.setServerData(data);
+    BaseScene.isGamePreview = isPreview;
+
+    this.setServerData(activity);
 
     this.setLevelData();
 
-    this.scene.start('PlayScene')
+    this.scene.start('PlayScene');
 
   }
 

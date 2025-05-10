@@ -4,7 +4,7 @@ import PreloadScene from './PreloadScene';
 import QuestionScene from './QuestionScene';
 import NotificationBannerScene from './NotificationBannerScene';
 
-import backgroundImage from './assets/backgroundtest.svg';
+import backgroundImage from './assets/background.svg';
 
 // Apply the background image to the body
 document.body.style.background = `url(${backgroundImage}) no-repeat center center / cover`;
@@ -21,8 +21,14 @@ const createScene = Scene => new Scene()
 const initScenes = () => Scenes.map(createScene)
 
 const { screen, innerWidth, innerHeight, devicePixelRatio: dpr } = window;
-const width = dpr === 1 ? screen.width : innerWidth * dpr;
-const height = dpr === 1 ? screen.height : innerHeight * dpr;
+
+const width = dpr === 1 
+  ? screen.width 
+  : innerWidth * dpr;
+
+const height = dpr === 1 
+  ? screen.height 
+  : innerHeight * dpr;
 
 const config = {
   type: Phaser.CANVAS,

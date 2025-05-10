@@ -2,7 +2,17 @@ import BaseScene from './BaseScene';
 
 import blockManager from './BlockManager.js';
 
-import { sizeBasedOnHeightResolutionProportion, toTwoDecimalPlace, scaleBasedOnImage, positionBasedOnResolution } from './Utils.js';
+import { 
+  sizeBasedOnHeightResolutionProportion, 
+  toTwoDecimalPlace, 
+  scaleBasedOnImage,
+  positionBasedOnResolution 
+} from './Utils.js';
+
+import { 
+  updateActivityCategoryCompletionBySlugAndCurrentStudentUser, 
+  setActivityCategoryCompletionBySlugAndCurrentStudentUser 
+} from './api/data.api';
 
 class PlayScene extends BaseScene{
 
@@ -57,6 +67,12 @@ class PlayScene extends BaseScene{
     this.board.setPosition(boardPosition.xPosition, boardPosition.yPosition); 
 
     this.boardBounds = this.board.getBounds();
+
+    //set full screen icon position
+    this.setFullScreenIconPosition(
+      (this.boardBounds.right + BaseScene.windowWidth) / 2,
+      this.boardBounds.bottom
+    );
 
     this.xBorderPaddingByLength = this.getMarginLength(this.boardBounds.width, this.xBorderPaddingByPercent);
 
@@ -144,20 +160,12 @@ class PlayScene extends BaseScene{
   startGameLevel() {
 
     if (this.blocksGroup.getLength()){
-
-      this.blocksGroup.clear(true, true);      
-
+      this.blocksGroup.clear(true, true);
     }
 
     BaseScene.currentGameLevel = (BaseScene.currentGameLevel % BaseScene.maxGameLevel) + 1;
 
     this.updateLevelInfoData(this.isNextStageNumber());
-
-    if (!BaseScene.levelData.randomizeQuestions){
-
-      this.setLevelQuestions();
-
-    }
 
     this.updateGameLevelText();
     
@@ -319,6 +327,8 @@ class PlayScene extends BaseScene{
 
   blockMovement = (block, ismarkRows) => {
 
+    const {serverData, levelData, blockEndMoveAudio, wrongAnswerAudio, selectedQandA} = BaseScene;
+
     if (ismarkRows){
 
       //vertical
@@ -409,7 +419,7 @@ class PlayScene extends BaseScene{
         block.blockInfo.hasCollidedWithOtherBlock = false;
 
         if (block.y !== block.blockInfo.dragInitialPosition.y){
-          BaseScene.blockEndMoveAudio.play();
+          blockEndMoveAudio.play();
         }
 
       });
@@ -505,6 +515,30 @@ class PlayScene extends BaseScene{
 
           if (block.blockInfo.isMainBlock
             && block.x + block.displayWidth > this.boardBounds.right){
+
+              await this.checkInternetConnectionBanner();
+
+              const hasCompletion = levelData.completions;
+
+              if (hasCompletion && Object.keys(levelData.completions).length > 0){
+
+                console.log("updateActivityCategoryCompletionBySlugAndCurrentStudentUser called");
+
+                await updateActivityCategoryCompletionBySlugAndCurrentStudentUser(
+                  selectedQandA,
+                  levelData.id
+                );
+
+              }else {
+
+                console.log("setActivityCategoryCompletionBySlugAndCurrentStudentUser called");
+
+                await setActivityCategoryCompletionBySlugAndCurrentStudentUser(
+                  selectedQandA,
+                  levelData.id
+                );
+
+              }
           
               this.startGameLevel();
 
@@ -512,7 +546,7 @@ class PlayScene extends BaseScene{
           }       
         
           if (block.x !== block.blockInfo.dragInitialPosition.x){
-            BaseScene.blockEndMoveAudio.play();
+            blockEndMoveAudio.play();
           }
 
         });
@@ -580,9 +614,7 @@ class PlayScene extends BaseScene{
   }
   
   initializeGenerateRandomBlocks = () => {
-
     this.blockManager = new blockManager();
-
   }
 
   columnPosition(totalMarginWidth){

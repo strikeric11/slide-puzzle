@@ -1,12 +1,8 @@
 import BaseScene from './BaseScene';
 
-import { randomNumsArray } from './GameHelpers.js';
-
 import { blockKeyArray } from './GameInternalData.js';
 
 import { getQuestionImageUrl } from './api/instance.api.js';
-
-import { updateActivityCategoryCompletionBySlugAndCurrentStudentUser } from './api/data.api';
 
 class QuestionScene extends BaseScene 
 {
@@ -48,7 +44,7 @@ class QuestionScene extends BaseScene
     
     this.currentQuestionIndex = 0;
 
-    this.questionTextFontSize = 0;
+    this.questionTextDefaultFontSize = 0;
 
     this.answerFontSize = 0;
 
@@ -59,6 +55,8 @@ class QuestionScene extends BaseScene
     this.questionTextMaxHeightPercent = .315;
 
     this.questionImgMaxHeightPercent = .26;
+
+    this.questionImgHeightLimit = 0;
 
     this.answerHeightLimit = 0;
 
@@ -73,6 +71,8 @@ class QuestionScene extends BaseScene
     this.qAndLevelMultiplier = 0
 
     this.blockKeyValues = blockKeyArray();
+
+    this.randomNumArray = [];
     
   }
 
@@ -83,11 +83,11 @@ class QuestionScene extends BaseScene
     this.setQandABanner();
 
     await this.setQandAData();
+
+    setTimeout(() => {
+      BaseScene.playSceneRef.startGameLevel();
+    }, 700);
     
-    BaseScene.playSceneRef.startGameLevel();
-
-    //this.setQandABanner();
-
   }
 
   setQandABanner(){
@@ -102,11 +102,8 @@ class QuestionScene extends BaseScene
         .image(0, 0, 'banner')
         .setOrigin(.5, .5);
 
-      //const levelTextBottomBound = BaseScene.levelText.y + BaseScene.levelText.displayHeight / 2;
-
       const availableSpaceForBanner = BaseScene.windowHeight * .9;
 
-      //const bannerScaleY = availableSpaceForBanner * scaleYFactor / this.banner.height;
       const bannerScaleY = availableSpaceForBanner / this.banner.height;
       const bannerScaleX = BaseScene.windowWidth * scaleXFactor / this.banner.width;
 
@@ -126,7 +123,7 @@ class QuestionScene extends BaseScene
 
       this.questionTextWordWrap = this.bannerWidth * .85;
       this.answerTextWordWrap = this.bannerWidth * .8;
-      this.questionTextFontSize = this.bannerHeight * .065; //question text default font size
+      this.questionTextDefaultFontSize = this.bannerHeight * .07; //question text default font size
       this.textGapSpace = this.bannerHeight * .03;
       this.beforeAndAfterAnswerSpace = this.bannerHeight * .0425;
    
@@ -136,7 +133,7 @@ class QuestionScene extends BaseScene
 
       this.questionText = this.add.text(0, 0, "", {
         fontFamily: BaseScene.fontFamilyStyle,
-        fontSize: this.questionTextFontSize,
+        fontSize: this.questionTextDefaultFontSize,
         fill: '#000',
         wordWrap: {
           width: this.questionTextWordWrap,
@@ -163,7 +160,7 @@ class QuestionScene extends BaseScene
 
       this.individualAnswerHeight = this.bannerHeight * .105;
 
-      this.answerFontSize = this.questionTextFontSize - this.questionTextFontSize * fontSizeReductionPercent;
+      this.answerFontSize = this.questionTextDefaultFontSize - this.questionTextDefaultFontSize * fontSizeReductionPercent;
 
       for (let i = 0; i < this.answerCount; i++) {
 
@@ -243,7 +240,7 @@ class QuestionScene extends BaseScene
 
     const setBannerCloseButton = () => {
 
-      const targetSize = this.questionTextFontSize;
+      const targetSize = this.questionTextDefaultFontSize;
 
       this.closeBtn = this.add
         .image(0, 0, 'close_btn')
@@ -277,8 +274,9 @@ class QuestionScene extends BaseScene
 
     setBannerCloseButton();
 
-    this.answerHeightLimit = this.bannerHeight * .115;
+    this.questionImgHeightLimit = this.bannerHeight * this.questionImgMaxHeightPercent;
 
+    this.answerHeightLimit = this.bannerHeight * .115;
     this.answerWidthLimit = this.bannerWidth * 0.85;
 
     this.QandAContainer.setDepth(1);
@@ -303,6 +301,20 @@ class QuestionScene extends BaseScene
 
     const checkBoxPositionX = this.questionText.x + this.bannerWidth * this.answerTextIndent;
 
+    const getTextureProperties = (filename) => {
+
+      const texture = this.textures.get(filename);
+
+      if (texture && texture.source.length > 0) {
+        const baseFrame = texture.getSourceImage();
+        return { imgWidth: baseFrame.width, imgHeight: baseFrame.height };
+      } else {
+          console.warn("Texture not found:", filename);
+          return null;
+      }
+    
+    }
+
     const updateQuestion = () => {
 
       if (this.chosenQandA.textType === "text"){
@@ -316,11 +328,12 @@ class QuestionScene extends BaseScene
         }
 
         this.questionText.setText(this.chosenQandA.text);
+        this.questionText.setFontSize(this.questionTextDefaultFontSize);
 
         this.readjustTextBasedOnContainer(
           this.questionText,
-          this.bannerHeight * this.questionTextMaxHeightPercent,
-          this.questionTextFontSize,
+          this.questionImgHeightLimit,
+          this.questionTextDefaultFontSize,
           this.questionTextWordWrap,
           .05
         )
@@ -341,20 +354,14 @@ class QuestionScene extends BaseScene
 
         const fileName = this.extractFileName(this.chosenQandA.text);
 
-        this.questionText.setText("");
+        const { imgWidth, imgHeight } = getTextureProperties(fileName);
 
-        if (this.textures.exists(fileName)) {
-          // If the texture exists, set it as the new texture
-          this.questionImg.setTexture(fileName);
-
-        }
+        this.questionImg.setTexture(fileName);
 
         this.questionImg.setScale(1);
 
-        const questionImgHeightLimit = this.bannerHeight * this.questionImgMaxHeightPercent;
-
-        this.questionImg.displayHeight = Math.min(this.questionImg.displayHeight, questionImgHeightLimit);
-        this.questionImg.displayWidth = Math.min(this.questionImg.displayWidth, this.questionTextWordWrap);
+        this.questionImg.displayHeight = Math.min(imgHeight, this.questionImgHeightLimit);
+        this.questionImg.displayWidth = Math.min(imgWidth, this.questionTextWordWrap);
 
         bannerElementsTotalHeight += this.questionImg.displayHeight;
 
@@ -413,12 +420,13 @@ class QuestionScene extends BaseScene
           }
 
           const fileName = this.extractFileName(answerText);
+
+          const { imgWidth, imgHeight } = getTextureProperties(fileName);
             
           imgElement.setTexture(fileName);
 
-          imgElement.displayHeight = Math.min(imgElement.displayHeight, this.answerHeightLimit);
-          imgElement.displayWidth = Math.min(imgElement.displayWidth, this.answerWidthLimit);
-
+          imgElement.displayHeight = Math.min(imgHeight, this.answerHeightLimit);
+          imgElement.displayWidth = Math.min(imgWidth, this.answerWidthLimit);
           bannerElementsTotalHeight += imgElement.displayHeight;
 
         } else {
@@ -437,35 +445,6 @@ class QuestionScene extends BaseScene
 
           setImageTexture();
 
-          // if(this.textures.exists(textureKey)){
-          //   setImageTexture();
-          // } else {
-
-          //   //needed for there is a small delay on latex expression conversion
-          //   if(imgElement.scale > 0){
-          //     imgElement.setScale(0);
-          //   }
-
-          //   const svgFile = await this.latexToSvg(this.chosenQandA.choices[i].text);
-
-          //   if (svgFile){
-
-
-          //     this.convertInlineSvgToPhaserTexture(
-          //       svgFile, 
-          //       textureKey, 
-          //       this.bannerWidth * 0.85, 
-          //       answerHeightLimit,
-          //       1
-          //     );
-
-          //     this.textures.once(`addtexture-${textureKey}`, () => {
-          //       setImageTexture();
-          //     });
-  
-          //   }
-          // }
-
         }
   
       }
@@ -478,11 +457,9 @@ class QuestionScene extends BaseScene
 
       const isShortQandAText = bannerElementsTotalHeight < this.bannerHeight * .7;
 
-      // afterAndBeforeAnswerSpace = this.bannerHeight * (isShortQandAText ? 0.045 : 0.04);
+      afterAndBeforeAnswerSpace = this.bannerHeight * (isShortQandAText ? 0.045 : 0.034);
 
-      afterAndBeforeAnswerSpace = this.bannerHeight * (isShortQandAText ? 0.045 : 0.036);
-
-      const inBetweenAnswerAndAnswerSpace = this.bannerHeight * (isShortQandAText ? 0.035 : 0.0295);
+      const inBetweenAnswerAndAnswerSpace = this.bannerHeight * (isShortQandAText ? 0.035 : 0.027);
 
       const answers = this.chosenQandA.choices;
 
@@ -604,50 +581,36 @@ class QuestionScene extends BaseScene
 
   updateQandAData(blockKey){
 
-    const blockKeyValue = this.blockKeyValues.indexOf(blockKey);
-
-    const questionsTotalCount = BaseScene.levelQuestions.length;
-
     let qandAIndex = 0;
 
-    if (!BaseScene.levelData.randomizeQuestions){
+    const blockKeyValue = this.blockKeyValues.indexOf(blockKey);
 
-      const questionMultiplier = this.qAndLevelMultiplier * this.totalQuestionsCount();
+    const getCurrentQandAData = () => {
+      const { qAndAData, levelData, currentStageNumber } = BaseScene;
 
-      qandAIndex = (questionMultiplier + blockKeyValue) % questionsTotalCount;
+      return qAndAData[Math.min(currentStageNumber - 1, levelData.typeStage.totalStageCount - 1)];
+    };
 
-    } else {
+    const currentQandAData = getCurrentQandAData();
 
-      qandAIndex = (this.getRandomQuestionIndex() + blockKeyValue) % questionsTotalCount;
-      
-    }
+    const questionsTotalCount = currentQandAData.length;
 
-    const targetQuestionIndex = !BaseScene.levelData.randomizeQuestions 
-      ? qandAIndex 
-      : this.randomNumArray[qandAIndex];
+    const questionMultiplier = this.qAndLevelMultiplier * this.totalQuestionsCount();
 
-    this.chosenQandA = BaseScene.levelQuestions[targetQuestionIndex];
+    qandAIndex = (questionMultiplier + blockKeyValue) % questionsTotalCount;
+
+    this.chosenQandA = currentQandAData[qandAIndex];
 
     this.chosenQandA.correctAnswerIndex = this.chosenQandA.choices.findIndex(item => item.isCorrect === true);
 
   }
 
-  setRandomNumArray(length){
-
-    this.randomNumArray = randomNumsArray(length);
-
-  }
-
   incrementQAndLevelMultiplier(){
-
     this.qAndLevelMultiplier += 1;
-
   }
 
   resetQAndALevelMultiplier(){
-    
     this.qAndLevelMultiplier = 0;
-
   }
 
   //Event Handler
@@ -736,22 +699,19 @@ class QuestionScene extends BaseScene
    
     this.submitBtn.on('pointerdown', async () => {
 
+      const { correctAnswerAudio, wrongAnswerAudio } = BaseScene;
+
       const questionId = this.chosenQandA.id;
 
       const selectedAnswerId = this.chosenQandA.choices[this.selectedCheckBoxIndex].id;
 
       if (this.selectedCheckBoxIndex === this.chosenQandA.correctAnswerIndex){
 
-        this.addSelectedQandA(questionId, selectedAnswerId);
+        if(!BaseScene.isGamePreview){
+          this.addSelectedQandA(questionId, selectedAnswerId);
+        }
 
-        await this.checkInternetConnectionBanner();
-
-        updateActivityCategoryCompletionBySlugAndCurrentStudentUser(
-          BaseScene.selectedQandA,
-          BaseScene.serverData.id
-        );
-
-        BaseScene.correctAnswerAudio.play();
+        correctAnswerAudio.play();
 
         this.banner.setVisible(false);
 
@@ -765,7 +725,7 @@ class QuestionScene extends BaseScene
 
       } else {
 
-        BaseScene.wrongAnswerAudio.play();
+        wrongAnswerAudio.play();
 
         const targetCheckBox = this.checkBoxImgArr[this.selectedCheckBoxIndex];
 
@@ -783,37 +743,11 @@ class QuestionScene extends BaseScene
 
   }
 
-  async loadImageArray(qandAData, options = { sync: false }, callback) {
+  async loadImageArray(imagePathArr, options = { sync: false }, callback) {
     this.load.off('filecomplete', loadImage, this);
     this.load.off('loaderror', errorLoadImage, this);
 
     let imageIndex = 0;
-    const imagePathArr = [];
-
-    for (const data of qandAData) {
-      if (data.textType === "image") {
-        imagePathArr.push(data.text);
-      }
-      for (const choice of data.choices) {
-        if (choice.textType === "image") {
-          imagePathArr.push(choice.text);
-        } else if (choice.textType === "expression") {
-          const svgFile = await this.latexToSvg(choice.text);
-  
-          if (svgFile) {
-            const textureKey = "expression_" + choice.id; // Ensure a unique texture key
-            console.log("initial load textureKey: ", textureKey)
-            this.convertInlineSvgToPhaserTexture(
-              svgFile,
-              textureKey,
-              this.answerWidthLimit,
-              this.answerHeightLimit,
-              .9
-            );
-          }
-        }
-      }
-    }
 
     if (options.sync) {
       options.promise = new Promise((resolve) => {
@@ -822,13 +756,18 @@ class QuestionScene extends BaseScene
     }
 
     if (imagePathArr.length === 0) {
+
       if (options.sync) {
         options.resolve(true);
       }
       if (callback) {
         callback();
       }
+
       return options.sync ? options.promise : undefined;
+
+    } else if (options.sync){
+      this.setLoadingBarGfx();
     }
 
     const loadCurrentFile = () => {
@@ -847,6 +786,10 @@ class QuestionScene extends BaseScene
 
       imageIndex += 1;
 
+      if(options.sync){
+        this.updateLoadingBars(imageIndex, imagePathArr.length);
+      }
+      
       if (imageIndex < imagePathArr.length) {
         loadCurrentFile();
       } else {
@@ -866,31 +809,45 @@ class QuestionScene extends BaseScene
     };
 
     this.load.on('filecomplete', loadImage, this);
+
     this.load.on('loaderror', errorLoadImage, this);
 
     loadCurrentFile();
     this.load.start();
 
     return options.sync ? options.promise : undefined;
+    
   }
 
-  loadImagesAsynchronously() {
+  async getImagePathsAndRenderExpressions(qandAData) {
 
-    let gameLevel = 2; // Start level
+    const imagePathArr = [];
 
-    const totalStageNumber = BaseScene.levelData.typeStage.totalStageCount;
-  
-    const loadNextLevel = (currentLevel) => {
-      if (currentLevel > totalStageNumber) {
-        return;
+    for (const data of qandAData) {
+      if (data.textType === "image") {
+        imagePathArr.push(data.text);
       }
+      for (const choice of data.choices) {
+        if (choice.textType === "image") {
+          imagePathArr.push(choice.text);
+        } else if (choice.textType === "expression") {
+          const svgFile = await this.latexToSvg(choice.text);
   
-      this.loadImageArray(this.getLevelQuestions(currentLevel), {}, () => {
-        loadNextLevel(currentLevel + 1);
-      });
-    };
-  
-    loadNextLevel(gameLevel);
+          if (svgFile) {
+            const textureKey = "expression_" + choice.id;
+            await this.convertInlineSvgToPhaserTexture(
+              svgFile,
+              textureKey,
+              this.answerTextWordWrap,
+              this.answerHeightLimit,
+              .75
+            );
+          }
+        }
+      }
+    }
+
+    return imagePathArr;
 
   }
 
@@ -898,8 +855,8 @@ class QuestionScene extends BaseScene
     return filePath.match(/[^/]+$/)[0];
   }
 
-   //Latex Expression
-   latexToSvg = async (latex) => {
+  //Latex Expression
+  latexToSvg = async (latex) => {
     try {
       const node = await MathJax.tex2svgPromise(latex, { display: true });
       return node.querySelector("svg");
